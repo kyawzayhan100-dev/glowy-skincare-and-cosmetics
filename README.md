@@ -9,6 +9,8 @@ A simple e-commerce website built with Flask and SQLite for product browsing, ca
 - Shopping cart stored in session
 - SQLite database for product and order data
 - Checkout form and order confirmation
+- Admin product editing for name, price, category, and image
+- Product image upload support for store listings
 
 ## Setup Instructions
 
@@ -65,7 +67,7 @@ A simple e-commerce website built with Flask and SQLite for product browsing, ca
 
 ### Option 1: Add products from the site
 
-Visit `http://127.0.0.1:5000/admin/products` and use the `Add Product` button to create new products.
+Visit `http://127.0.0.1:5000/admin/products` and use the `Add Product` button to create new products or edit existing product name, price, category, and image.
 
 ### Option 2: Add products by editing the database seed data
 
@@ -113,3 +115,4 @@ INSERT INTO products (name, description, price, category) VALUES ('New Cream', '
 
 - The app now binds to `0.0.0.0` and uses `PORT` from the environment, which hosts require.
 - Keep `glowy.db` local during development; deployment platforms may use their own persistent storage.
+git push -u origin master

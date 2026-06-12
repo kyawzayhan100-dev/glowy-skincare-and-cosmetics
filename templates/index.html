@@ -1,14 +1,24 @@
 {% extends 'layout.html' %}
 {% block content %}
-<h1>Welcome to Glowy Skincare and Cosmetics</h1>
-<p>Discover nourishing skincare and luminous cosmetics designed to help your skin glow.</p>
+<section class="hero">
+    <div>
+        <h1>Fresh beauty for every glow</h1>
+        <p>Discover nourishing skincare and luminous cosmetics designed to help your skin glow.</p>
+    </div>
+</section>
 <div class="product-grid">
     {% for product in products %}
     <article class="product-card">
-        <h2>{{ product['name'] }}</h2>
-        <p>{{ product['description'] }}</p>
-        <p class="price">${{ '%.2f'|format(product['price']) }}</p>
-        <a class="button" href="{{ url_for('product_detail', product_id=product['id']) }}">View product</a>
+        {% if product['image'] %}
+        <img src="{{ url_for('static', filename='uploads/' ~ product['image']) }}" alt="{{ product['name'] }}" class="product-image">
+        {% endif %}
+        <div class="product-card-content">
+            <span class="product-category">{{ product['category'] }}</span>
+            <h2>{{ product['name'] }}</h2>
+            <p>{{ product['description'] }}</p>
+            <p class="price">${{ '%.2f'|format(product['price']) }}</p>
+            <a class="button" href="{{ url_for('product_detail', product_id=product['id']) }}">View product</a>
+        </div>
     </article>
     {% endfor %}
 </div>

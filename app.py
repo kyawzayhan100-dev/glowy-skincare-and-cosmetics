@@ -2,11 +2,16 @@ import os
 from datetime import datetime
 import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, session, flash
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'supersecretkey'
 DATABASE = os.path.join(os.path.dirname(__file__), 'glowy.db')
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2MB
 _db_initialized = False
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 PRODUCTS = [
     {
@@ -47,7 +52,8 @@ CREATE TABLE IF NOT EXISTS products (
     name TEXT NOT NULL,
     description TEXT NOT NULL,
     price REAL NOT NULL,
-    category TEXT NOT NULL
+    category TEXT NOT NULL,
+    image TEXT DEFAULT ''
 );
 '''
 
@@ -86,8 +92,8 @@ def init_db():
         if product_count == 0:
             for product in PRODUCTS:
                 cursor.execute(
-                    'INSERT INTO products (name, description, price, category) VALUES (?, ?, ?, ?);',
-                    (product['name'], product['description'], product['price'], product['category'])
+                    'INSERT INTO products (name, description, price, category, image) VALUES (?, ?, ?, ?, ?);',
+                    (product['name'], product['description'], product['price'], product['category'], product.get('image', ''))
                 )
         conn.commit()
 
@@ -104,11 +110,20 @@ def ensure_db():
         cursor = conn.cursor()
         cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='products'")
         has_products = cursor.fetchone()[0] > 0
+        if has_products:
+            cursor.execute("PRAGMA table_info(products)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if 'image' not in columns:
+                cursor.execute('ALTER TABLE products ADD COLUMN image TEXT DEFAULT ""')
+        conn.commit()
         conn.close()
         if not has_products:
             init_db()
 
     _db_initialized = True
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 def get_db_connection():
@@ -151,16 +166,29 @@ def add_product():
         description = request.form.get('description', '').strip()
         price_raw = request.form.get('price', '0').strip()
         category = request.form.get('category', '').strip() or 'Uncategorized'
+        image_name = ''
+
         try:
             price = float(price_raw)
         except ValueError:
             price = 0.0
 
+        image_file = request.files.get('image')
+        if image_file and image_file.filename and allowed_file(image_file.filename):
+            filename = secure_filename(image_file.filename)
+            timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+            image_name = f"{timestamp}_{filename}"
+            image_path = os.path.join(UPLOAD_FOLDER, image_name)
+            image_file.save(image_path)
+        elif image_file and image_file.filename:
+            flash('Only PNG, JPG, JPEG, and GIF images are allowed.')
+            return redirect(url_for('add_product'))
+
         if name and description and price > 0:
             conn = get_db_connection()
             conn.execute(
-                'INSERT INTO products (name, description, price, category) VALUES (?, ?, ?, ?)',
-                (name, description, price, category)
+                'INSERT INTO products (name, description, price, category, image) VALUES (?, ?, ?, ?, ?)',
+                (name, description, price, category, image_name)
             )
             conn.commit()
             conn.close()
@@ -170,6 +198,55 @@ def add_product():
         flash('Please enter a complete product name, description, and price.')
 
     return render_template('add_product.html')
+
+
+@app.route('/admin/edit-product/<int:product_id>', methods=['GET', 'POST'])
+def edit_product(product_id):
+    conn = get_db_connection()
+    product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
+    if not product:
+        conn.close()
+        flash('Product not found.')
+        return redirect(url_for('admin_products'))
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        price_raw = request.form.get('price', '0').strip()
+        category = request.form.get('category', '').strip() or 'Uncategorized'
+        image_name = product['image']
+
+        try:
+            price = float(price_raw)
+        except ValueError:
+            price = product['price']
+
+        image_file = request.files.get('image')
+        if image_file and image_file.filename and allowed_file(image_file.filename):
+            filename = secure_filename(image_file.filename)
+            timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+            image_name = f"{timestamp}_{filename}"
+            image_path = os.path.join(UPLOAD_FOLDER, image_name)
+            image_file.save(image_path)
+        elif image_file and image_file.filename:
+            flash('Only PNG, JPG, JPEG, and GIF images are allowed.')
+            conn.close()
+            return redirect(url_for('edit_product', product_id=product_id))
+
+        if name and description and price > 0:
+            conn.execute(
+                'UPDATE products SET name = ?, description = ?, price = ?, category = ?, image = ? WHERE id = ?',
+                (name, description, price, category, image_name, product_id)
+            )
+            conn.commit()
+            conn.close()
+            flash('Product updated successfully!')
+            return redirect(url_for('admin_products'))
+
+        flash('Please enter valid product information.')
+
+    conn.close()
+    return render_template('edit_product.html', product=product)
 
 
 @app.route('/cart')

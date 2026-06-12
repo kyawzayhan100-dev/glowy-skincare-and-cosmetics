@@ -1,37 +1,44 @@
 import sqlite3
 
-DATABASE = 'glowy.db'
+import os
+
+DATABASE = os.path.join(os.path.dirname(__file__), 'glowy.db')
 
 products = [
     {
         'name': 'Glow Serum',
         'description': 'Hydrating vitamin C face serum for radiant skin.',
         'price': 29.99,
-        'category': 'Skincare'
+        'category': 'Skincare',
+        'image': ''
     },
     {
         'name': 'Luminous Lip Tint',
         'description': 'Sheer, long-lasting lip tint with a glossy finish.',
         'price': 18.50,
-        'category': 'Cosmetics'
+        'category': 'Cosmetics',
+        'image': ''
     },
     {
         'name': 'Silk Night Cream',
         'description': 'Nourishing overnight moisturizer for soft skin.',
         'price': 34.99,
-        'category': 'Skincare'
+        'category': 'Skincare',
+        'image': ''
     },
     {
         'name': 'Velvet Matte Eyeshadow',
         'description': 'Palette of natural, blendable shades for everyday looks.',
         'price': 24.00,
-        'category': 'Cosmetics'
+        'category': 'Cosmetics',
+        'image': ''
     },
     {
         'name': 'Radiant Facial Oil',
         'description': 'Lightweight oil to restore brightness and glow.',
         'price': 27.50,
-        'category': 'Skincare'
+        'category': 'Skincare',
+        'image': ''
     }
 ]
 
@@ -41,7 +48,8 @@ CREATE TABLE IF NOT EXISTS products (
     name TEXT NOT NULL,
     description TEXT NOT NULL,
     price REAL NOT NULL,
-    category TEXT NOT NULL
+    category TEXT NOT NULL,
+    image TEXT DEFAULT ''
 );
 '''
 
@@ -78,8 +86,8 @@ def init_db():
         cursor.execute('DELETE FROM products;')
         for product in products:
             cursor.execute(
-                'INSERT INTO products (name, description, price, category) VALUES (?, ?, ?, ?);',
-                (product['name'], product['description'], product['price'], product['category'])
+                'INSERT INTO products (name, description, price, category, image) VALUES (?, ?, ?, ?, ?);',
+                (product['name'], product['description'], product['price'], product['category'], product.get('image', ''))
             )
         conn.commit()
 
