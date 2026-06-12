@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 import sqlite3
+from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.utils import secure_filename
 
@@ -10,6 +11,8 @@ DATABASE = os.path.join(os.path.dirname(__file__), 'glowy.db')
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2MB
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'glowyadmin123')
 _db_initialized = False
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -62,7 +65,10 @@ CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     customer_name TEXT NOT NULL,
     customer_email TEXT NOT NULL,
+    customer_phone TEXT NOT NULL,
     shipping_address TEXT NOT NULL,
+    shipping_city TEXT NOT NULL,
+    shipping_postal_code TEXT NOT NULL,
     total REAL NOT NULL,
     created_at TEXT NOT NULL
 );
@@ -115,6 +121,21 @@ def ensure_db():
             columns = [row[1] for row in cursor.fetchall()]
             if 'image' not in columns:
                 cursor.execute('ALTER TABLE products ADD COLUMN image TEXT DEFAULT ""')
+
+        cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='orders'")
+        has_orders = cursor.fetchone()[0] > 0
+        if has_orders:
+            cursor.execute("PRAGMA table_info(orders)")
+            order_columns = [row[1] for row in cursor.fetchall()]
+            missing_order_columns = {
+                'customer_phone': 'TEXT DEFAULT ""',
+                'shipping_city': 'TEXT DEFAULT ""',
+                'shipping_postal_code': 'TEXT DEFAULT ""'
+            }
+            for column, ddl in missing_order_columns.items():
+                if column not in order_columns:
+                    cursor.execute(f'ALTER TABLE orders ADD COLUMN {column} {ddl}')
+
         conn.commit()
         conn.close()
         if not has_products:
@@ -131,6 +152,36 @@ def get_db_connection():
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def admin_required(view_func):
+    @wraps(view_func)
+    def wrapped_view(*args, **kwargs):
+        if not session.get('admin_logged_in'):
+            flash('Please log in to access the admin panel.')
+            return redirect(url_for('admin_login'))
+        return view_func(*args, **kwargs)
+    return wrapped_view
+
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session['admin_logged_in'] = True
+            flash('Logged in successfully.')
+            return redirect(url_for('admin_products'))
+        flash('Invalid admin credentials.')
+    return render_template('admin_login.html')
+
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin_logged_in', None)
+    flash('You have logged out.')
+    return redirect(url_for('home'))
 
 
 @app.route('/')
@@ -152,6 +203,7 @@ def product_detail(product_id):
 
 
 @app.route('/admin/products')
+@admin_required
 def admin_products():
     conn = get_db_connection()
     products = conn.execute('SELECT * FROM products').fetchall()
@@ -159,7 +211,33 @@ def admin_products():
     return render_template('admin_products.html', products=products)
 
 
+@app.route('/admin/orders')
+@admin_required
+def admin_orders():
+    conn = get_db_connection()
+    orders = conn.execute('SELECT * FROM orders ORDER BY created_at DESC').fetchall()
+    conn.close()
+    return render_template('admin_orders.html', orders=orders)
+
+
+@app.route('/admin/orders/<int:order_id>')
+@admin_required
+def admin_order_detail(order_id):
+    conn = get_db_connection()
+    order = conn.execute('SELECT * FROM orders WHERE id = ?', (order_id,)).fetchone()
+    order_items = conn.execute(
+        'SELECT oi.quantity, oi.price, p.name FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?',
+        (order_id,)
+    ).fetchall()
+    conn.close()
+    if not order:
+        flash('Order not found.')
+        return redirect(url_for('admin_orders'))
+    return render_template('admin_order_detail.html', order=order, items=order_items)
+
+
 @app.route('/admin/add-product', methods=['GET', 'POST'])
+@admin_required
 def add_product():
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
@@ -201,6 +279,7 @@ def add_product():
 
 
 @app.route('/admin/edit-product/<int:product_id>', methods=['GET', 'POST'])
+@admin_required
 def edit_product(product_id):
     conn = get_db_connection()
     product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
@@ -333,13 +412,16 @@ def checkout():
     if request.method == 'POST':
         name = request.form['name']
         email = request.form['email']
+        phone = request.form['phone']
         address = request.form['address']
+        city = request.form['city']
+        postal_code = request.form['postal_code']
 
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            'INSERT INTO orders (customer_name, customer_email, shipping_address, total, created_at) VALUES (?, ?, ?, ?, ?)',
-            (name, email, address, total, datetime.utcnow().isoformat())
+            'INSERT INTO orders (customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_postal_code, total, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            (name, email, phone, address, city, postal_code, total, datetime.utcnow().isoformat())
         )
         order_id = cursor.lastrowid
         for item in items:
@@ -351,7 +433,18 @@ def checkout():
         conn.close()
 
         session.pop('cart', None)
-        return render_template('checkout_success.html', order_id=order_id, items=items, total=total, name=name)
+        return render_template(
+            'checkout_success.html',
+            order_id=order_id,
+            items=items,
+            total=total,
+            name=name,
+            email=email,
+            phone=phone,
+            address=address,
+            city=city,
+            postal_code=postal_code
+        )
 
     return render_template('checkout.html', items=items, total=total)
 

@@ -2,12 +2,24 @@
 {% block content %}
 <h1>Thank you, {{ name }}!</h1>
 <p>Your order #{{ order_id }} is confirmed. We will process your shipment shortly.</p>
-<h2>Order Details</h2>
-<ul class="order-summary">
-    {% for item in items %}
-    <li>{{ item.quantity }} × {{ item.product['name'] }} — ${{ '%.2f'|format(item.subtotal) }}</li>
-    {% endfor %}
-</ul>
-<p class="cart-total">Total paid: ${{ '%.2f'|format(total) }}</p>
+<section class="checkout-panel">
+    <div>
+        <h2>Delivery Details</h2>
+        <p><strong>Email:</strong> {{ email }}</p>
+        <p><strong>Phone:</strong> {{ phone }}</p>
+        <p><strong>Address:</strong> {{ address }}</p>
+        <p><strong>City:</strong> {{ city }}</p>
+        <p><strong>Postal Code:</strong> {{ postal_code }}</p>
+    </div>
+    <div>
+        <h2>Order Details</h2>
+        <ul class="order-summary">
+            {% for item in items %}
+            <li>{{ item.quantity }} × {{ item.product['name'] }} — ${{ '%.2f'|format(item.subtotal) }}</li>
+            {% endfor %}
+        </ul>
+        <p class="cart-total">Total paid: ${{ '%.2f'|format(total) }}</p>
+    </div>
+</section>
 <a class="button" href="{{ url_for('home') }}">Continue Shopping</a>
 {% endblock %}

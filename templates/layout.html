@@ -16,7 +16,13 @@
             <nav>
                 <a href="{{ url_for('home') }}">Shop</a>
                 <a href="{{ url_for('cart') }}">Cart</a>
-                <a href="{{ url_for('admin_products') }}">Admin</a>
+                {% if session.get('admin_logged_in') %}
+                    <a href="{{ url_for('admin_products') }}">Admin</a>
+                    <a href="{{ url_for('admin_orders') }}">Orders</a>
+                    <a href="{{ url_for('admin_logout') }}">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('admin_login') }}">Admin Login</a>
+                {% endif %}
             </nav>
         </div>
     </header>

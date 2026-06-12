@@ -1,0 +1,52 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="admin-panel">
+    <div class="admin-header">
+        <div>
+            <h1>Order #{{ order['id'] }}</h1>
+            <p>Customer delivery and order details.</p>
+        </div>
+    </div>
+
+    <div class="admin-header">
+        <a class="button" href="{{ url_for('admin_orders') }}">← Back to Orders</a>
+    </div>
+
+    <section class="checkout-panel">
+        <div>
+            <h2>Customer Information</h2>
+            <p><strong>Name:</strong> {{ order['customer_name'] }}</p>
+            <p><strong>Email:</strong> {{ order['customer_email'] }}</p>
+            <p><strong>Phone:</strong> {{ order['customer_phone'] }}</p>
+        </div>
+        <div>
+            <h2>Delivery Location</h2>
+            <p><strong>Address:</strong> {{ order['shipping_address'] }}</p>
+            <p><strong>City:</strong> {{ order['shipping_city'] }}</p>
+            <p><strong>Postal Code:</strong> {{ order['shipping_postal_code'] }}</p>
+            <p><strong>Total:</strong> ${{ '%.2f'|format(order['total']) }}</p>
+            <p><strong>Placed:</strong> {{ order['created_at'] }}</p>
+        </div>
+    </section>
+
+    <h2>Items</h2>
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item['name'] }}</td>
+                <td>{{ item['quantity'] }}</td>
+                <td>${{ '%.2f'|format(item['price']) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
