@@ -81,12 +81,14 @@ def init_db():
         cursor.execute(CREATE_PRODUCTS_SQL)
         cursor.execute(CREATE_ORDERS_SQL)
         cursor.execute(CREATE_ORDER_ITEMS_SQL)
-        cursor.execute('DELETE FROM products;')
-        for product in PRODUCTS:
-            cursor.execute(
-                'INSERT INTO products (name, description, price, category) VALUES (?, ?, ?, ?);',
-                (product['name'], product['description'], product['price'], product['category'])
-            )
+        cursor.execute('SELECT count(*) FROM products')
+        product_count = cursor.fetchone()[0]
+        if product_count == 0:
+            for product in PRODUCTS:
+                cursor.execute(
+                    'INSERT INTO products (name, description, price, category) VALUES (?, ?, ?, ?);',
+                    (product['name'], product['description'], product['price'], product['category'])
+                )
         conn.commit()
 
 
