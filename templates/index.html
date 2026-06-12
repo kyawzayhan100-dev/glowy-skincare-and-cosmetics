@@ -1,0 +1,15 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Welcome to Glowy Skincare and Cosmetics</h1>
+<p>Discover nourishing skincare and luminous cosmetics designed to help your skin glow.</p>
+<div class="product-grid">
+    {% for product in products %}
+    <article class="product-card">
+        <h2>{{ product['name'] }}</h2>
+        <p>{{ product['description'] }}</p>
+        <p class="price">${{ '%.2f'|format(product['price']) }}</p>
+        <a class="button" href="{{ url_for('product_detail', product_id=product['id']) }}">View product</a>
+    </article>
+    {% endfor %}
+</div>
+{% endblock %}
