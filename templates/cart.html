@@ -35,6 +35,10 @@
     <button type="submit" class="button">Proceed to Checkout</button>
 </form>
 {% else %}
-<p>Your cart is empty. Browse our <a href="{{ url_for('home') }}">shop</a> to add products.</p>
+<div class="empty-cart-note">
+    <h2>Your cart is empty</h2>
+    <p>Add products to your cart first, then proceed to checkout when you're ready.</p>
+    <a class="button" href="{{ url_for('home') }}">Browse Products</a>
+</div>
 {% endif %}
 {% endblock %}

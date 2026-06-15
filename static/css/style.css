@@ -408,3 +408,22 @@ input[type="file"] {
     padding: 0.9rem 1rem;
     border-radius: 12px;
 }
+
+.empty-cart-note {
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid #f1d8d2;
+    border-radius: 22px;
+    padding: 1.5rem;
+    max-width: 700px;
+    margin-top: 1.5rem;
+}
+
+.empty-cart-note h2 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+}
+
+.empty-cart-note p {
+    margin-bottom: 1rem;
+    color: #5d4a48;
+}
